@@ -1,0 +1,5 @@
+.mrs-tool-wrapper { border:1px solid #eee; padding:20px; border-radius:6px; max-width:720px; background:#fff; }
+.mrs-tool-wrapper h2 { margin-top:0; font-size:1.4rem; }
+.mrs-btn { display:inline-block; padding:8px 14px; border-radius:4px; background:#0073aa; color:#fff; border:none; cursor:pointer; }
+.mrs-settings { margin:10px 0; }
+.mrs-tool-wrapper input[type="file"] { display:block; margin-bottom:10px; }

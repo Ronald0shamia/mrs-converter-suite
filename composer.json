@@ -1,0 +1,16 @@
+{
+  "name": "mrs-dev/mrs-converter-suite",
+  "description": "MRS Converter Suite - WordPress plugin",
+  "type": "project",
+  "require": {
+    "phpoffice/phpword": "^1.0",
+    "dompdf/dompdf": "^2.1",
+    "setasign/fpdi": "^2.3",
+    "setasign/fpdf": "^1.8"
+  },
+  "autoload": {
+    "psr-4": {
+      "MRS_CS\\": "core/"
+    }
+  }
+}
