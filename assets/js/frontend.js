@@ -1,38 +1,70 @@
-jQuery(document).ready(function($){
-    $('form[id^="mrs-"]').on('submit', function(e){
-        e.preventDefault();
+jQuery(function($){
+    // localize expects MRS_CSAjax { ajax_url, nonce }
+    var ajaxUrl = (typeof MRS_CSAjax !== 'undefined') ? MRS_CSAjax.ajax_url : '/wp-admin/admin-ajax.php';
+    var ajaxNonce = (typeof MRS_CSAjax !== 'undefined') ? MRS_CSAjax.nonce : '';
+
+    function initDropzone($root) {
+        var $dz = $root.find('.mrs-dropzone');
+        var $file = $root.find('input[type=file]');
+        $dz.on('click', function(){ $file.trigger('click'); });
+        $dz.on('dragover', function(e){ e.preventDefault(); $(this).addClass('dragover'); });
+        $dz.on('dragleave', function(){ $(this).removeClass('dragover'); });
+        $dz.on('drop', function(e){
+            e.preventDefault();
+            $(this).removeClass('dragover');
+            var files = e.originalEvent.dataTransfer.files;
+            $file[0].files = files;
+            $dz.find('p').text(files.length > 1 ? files.length + ' Dateien ausgewählt' : files[0].name);
+        });
+    }
+
+    $('.mrs-form').each(function(){
         var $form = $(this);
-        var id = $form.attr('id'); // e.g. mrs-word-pdf-form
-        var action = id.replace(/^mrs-/, '').replace(/-form$/, '').replace(/-/g, '_'); // word_pdf
-        var formData = new FormData(this);
-        formData.append('action', 'mrs_' + action);
-        formData.append('nonce', MRS_CSAjax.nonce);
+        initDropzone($form);
 
-        var resultSelector = '#mrs-' + action.replace(/_/g,'-') + '-result';
-        var $result = $(resultSelector);
-        if ($result.length === 0) {
-            $result = $form.find('div[id$="-result"]').first();
-        }
+        $form.on('submit', function(e){
+            e.preventDefault();
+            var $progress = $form.find('.mrs-progress');
+            var $result = $form.closest('.mrs-tool-wrapper').find('.mrs-result').first();
+            var action = $form.data('action') || $form.attr('id') || '';
+            var fd = new FormData(this);
+            fd.append('action', action);
+            // add nonce (form has own hidden nonce too)
+            if (!fd.get('nonce') && ajaxNonce) fd.append('nonce', ajaxNonce);
 
-        $result.html('<em>Bitte warten…</em>');
+            $result.html('<em>Bitte warten…</em>');
+            $progress.css('width','0%');
 
-        $.ajax({
-            url: MRS_CSAjax.ajax_url,
-            method: 'POST',
-            data: formData,
-            processData: false,
-            contentType: false,
-            success: function(res){
-                if (res && res.success) {
-                    $result.html('<a href="'+res.data.url+'" target="_blank" rel="noopener">Datei herunterladen</a>');
-                } else {
-                    var msg = (res && res.data) ? res.data : 'Unbekannter Fehler';
-                    $result.html('<span style="color:#a00">Fehler: ' + msg + '</span>');
+            $.ajax({
+                url: ajaxUrl,
+                method: 'POST',
+                data: fd,
+                contentType: false,
+                processData: false,
+                xhr: function(){
+                    var xhr = new window.XMLHttpRequest();
+                    xhr.upload.addEventListener('progress', function(e){
+                        if (e.lengthComputable) {
+                            var percent = Math.round(e.loaded / e.total * 100);
+                            $progress.css('width', percent + '%');
+                        }
+                    });
+                    return xhr;
+                },
+                success: function(res) {
+                    if (res && res.success) {
+                        var url = res.data.url || (res.data && res.data.url);
+                        $result.html('<a href="'+url+'" target="_blank" rel="noopener">Datei herunterladen</a>');
+                    } else {
+                        var msg = (res && res.data) ? res.data : (res && res.message) ? res.message : 'Unbekannter Fehler';
+                        $result.html('<div class="mrs-error">Fehler: ' + msg + '</div>');
+                    }
+                },
+                error: function(xhr) {
+                    var msg = xhr.statusText || 'Netzwerkfehler';
+                    $result.html('<div class="mrs-error">Fehler: ' + msg + '</div>');
                 }
-            },
-            error: function(xhr){
-                $result.html('<span style="color:#a00">Fehler: ' + xhr.statusText + '</span>');
-            }
+            });
         });
     });
 });

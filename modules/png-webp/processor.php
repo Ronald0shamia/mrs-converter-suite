@@ -2,86 +2,80 @@
 if (!defined('ABSPATH')) exit;
 
 function mrs_png_webp_process() {
-    if (empty($_FILES['files'])) wp_send_json_error('Keine Dateien gesendet',400);
+    if (empty($_FILES['files'])) wp_send_json_error('Keine Dateien gesendet', 400);
 
-    $files = $_FILES['files'];
-    $upload_dir = wp_upload_dir();
-    $tmp_dir = trailingslashit($upload_dir['basedir']) . 'mrs_cs_temp/';
-    if (!is_dir($tmp_dir)) wp_mkdir_p($tmp_dir);
-
-    $quality = isset($_POST['quality']) ? intval($_POST['quality']) : 80;
-    $keepName = isset($_POST['keep_original_name']) && $_POST['keep_original_name'] == '1';
-
+    $tmp_dir = \MRS_CS\temp_dir();
     $outFiles = [];
+    $quality = isset($_POST['quality']) ? intval($_POST['quality']) : 80;
 
-    foreach ($files['tmp_name'] as $i => $tmpname) {
-        $origName = sanitize_file_name($files['name'][$i]);
-        $mime = mime_content_type($tmpname) ?: $files['type'][$i];
-
-        if (!in_array($mime, ['image/png','image/jpeg','image/jpg'])) {
-            continue;
-        }
-
-        $base = $keepName ? pathinfo($origName, PATHINFO_FILENAME) : 'converted_' . time() . '_' . $i;
-        $destFilename = $base . '.webp';
-        $destPath = $tmp_dir . wp_unique_filename($tmp_dir, $destFilename);
-
+    foreach ($_FILES['files']['tmp_name'] as $i => $tmpname) {
+        $_FILES['tmp_single'] = [
+            'name' => $_FILES['files']['name'][$i],
+            'type' => $_FILES['files']['type'][$i],
+            'tmp_name' => $tmpname,
+            'error' => $_FILES['files']['error'][$i],
+            'size' => $_FILES['files']['size'][$i],
+        ];
+        $res = \MRS_CS\handle_upload_field('tmp_single', ['png','jpg','jpeg'], 10 * 1024 * 1024);
+        unset($_FILES['tmp_single']);
+        if (is_wp_error($res)) continue;
+        $src = $res;
+        $dest = $tmp_dir . pathinfo($src, PATHINFO_FILENAME) . '.webp';
         $converted = false;
 
         if (class_exists('Imagick')) {
             try {
-                $im = new Imagick($tmpname);
+                $im = new \Imagick($src);
                 $im->setImageFormat('webp');
                 $im->setImageCompressionQuality($quality);
                 if (method_exists($im,'stripImage')) $im->stripImage();
-                $im->writeImage($destPath);
+                $im->writeImage($dest);
                 $im->clear(); $im->destroy();
-                $converted = file_exists($destPath);
+                $converted = file_exists($dest);
             } catch (\Exception $e) {
                 $converted = false;
             }
         }
 
         if (!$converted && function_exists('imagewebp')) {
-            if ($mime === 'image/png') {
-                $img = imagecreatefrompng($tmpname);
+            $mime = mime_content_type($src);
+            if (strpos($mime, 'png') !== false) {
+                $img = imagecreatefrompng($src);
                 if ($img) {
                     imagepalettetotruecolor($img);
                     imagealphablending($img, false);
                     imagesavealpha($img, true);
-                    $converted = imagewebp($img, $destPath, $quality);
+                    $converted = imagewebp($img, $dest, $quality);
                     imagedestroy($img);
                 }
             } else {
-                $img = imagecreatefromjpeg($tmpname);
+                $img = imagecreatefromjpeg($src);
                 if ($img) {
-                    $converted = imagewebp($img, $destPath, $quality);
+                    $converted = imagewebp($img, $dest, $quality);
                     imagedestroy($img);
                 }
             }
         }
 
-        if (!$converted) continue;
-
-        @chmod($destPath, 0644);
-        $outFiles[] = $destPath;
+        if ($converted) $outFiles[] = $dest;
     }
 
-    if (empty($outFiles)) {
-        wp_send_json_error('Keine Dateien konvertiert (fehlende PHP-Extensions oder ungültige Dateien).', 500);
-    }
+    if (empty($outFiles)) wp_send_json_error('Keine Dateien konvertiert (fehlende Extensions?)', 500);
 
     if (count($outFiles) === 1) {
-        $url = trailingslashit($upload_dir['baseurl']) . 'mrs_cs_temp/' . basename($outFiles[0]);
+        $token = \MRS_CS\create_download_token($outFiles[0], 3600);
+        $url = add_query_arg('mrs_cs_download', $token, home_url('/'));
         wp_send_json_success(['url' => $url]);
     } else {
-        $zip = new ZipArchive();
-        $zipPath = $tmp_dir . 'webp_' . time() . '.zip';
-        if ($zip->open($zipPath, ZipArchive::CREATE) !== TRUE) {
-            wp_send_json_error('ZIP Fehler',500);
+        $zip = new \ZipArchive();
+        $zipPath = \MRS_CS\temp_dir() . 'webp_' . time() . '.zip';
+        if ($zip->open($zipPath, \ZipArchive::CREATE) !== TRUE) {
+            wp_send_json_error('ZIP Fehler', 500);
         }
         foreach ($outFiles as $f) $zip->addFile($f, basename($f));
         $zip->close();
-        wp_send_json_success(['url' => trailingslashit($upload_dir['baseurl']) . 'mrs_cs_temp/' . basename($zipPath)]);
+        $token = \MRS_CS\create_download_token($zipPath, 3600);
+        $url = add_query_arg('mrs_cs_download', $token, home_url('/'));
+        wp_send_json_success(['url' => $url]);
     }
 }
