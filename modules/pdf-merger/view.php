@@ -2,7 +2,7 @@
 <div class="mrs-tool-wrapper">
     <h2>PDF Merger</h2>
 
-    <form class="mrs-form" data-action="mrs_pdf_merger" enctype="multipart/form-data">
+    <form class="mrs-form" data-action="mrs_pdf_merger_action" enctype="multipart/form-data">
         <div class="mrs-dropzone"><p>Ziehe mehrere PDFs hierher</p></div>
         <input type="file" name="files[]" accept="application/pdf" multiple />
         <div class="mrs-progress-wrap"><div class="mrs-progress"></div></div>

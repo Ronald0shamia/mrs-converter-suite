@@ -2,24 +2,20 @@
 if (!defined('ABSPATH')) exit;
 
 function mrs_word_pdf_process() {
-    // use helper to handle upload
-    $res = \MRS_CS\handle_upload_field('file', ['doc','docx'], 10 * 1024 * 1024);
-    if (is_wp_error($res)) {
-        wp_send_json_error($res->get_error_message(), 400);
-    }
-    $uploadedPath = $res;
+    // handle upload
+    $res = mrs_handle_single_upload('file', ['doc','docx'], 12 * 1024 * 1024);
+    if (is_wp_error($res)) wp_send_json_error($res->get_error_message(), 400);
+    $uploaded = $res;
 
-    // require composer libs
-    if (!class_exists('\PhpOffice\PhpWord\IOFactory')) {
-        wp_send_json_error('Fehlende Bibliothek: phpoffice/phpword (via composer)', 500);
-    }
-    if (!class_exists('\Dompdf\Dompdf')) {
-        wp_send_json_error('Fehlende Bibliothek: dompdf (via composer)', 500);
+    // conversion: try phpword+dompdf if installed, otherwise try to return error
+    if (!class_exists('\PhpOffice\PhpWord\IOFactory') || !class_exists('\Dompdf\Dompdf')) {
+        // Try to notify user to install libs
+        wp_send_json_error('Konvertierung nicht verfügbar: benötigte PHP-Bibliotheken fehlen (phpword + dompdf).', 500);
     }
 
     try {
-        $phpWord = \PhpOffice\PhpWord\IOFactory::load($uploadedPath);
-        $htmlFile = \MRS_CS\temp_dir() . pathinfo($uploadedPath, PATHINFO_FILENAME) . '.html';
+        $phpWord = \PhpOffice\PhpWord\IOFactory::load($uploaded);
+        $htmlFile = mrs_temp_dir() . pathinfo($uploaded, PATHINFO_FILENAME) . '.html';
         $htmlWriter = \PhpOffice\PhpWord\IOFactory::createWriter($phpWord, 'HTML');
         $htmlWriter->save($htmlFile);
 
@@ -28,13 +24,13 @@ function mrs_word_pdf_process() {
         $dompdf->loadHtml($html);
         $dompdf->setPaper('A4', 'portrait');
         $dompdf->render();
-        $pdfPath = \MRS_CS\temp_dir() . pathinfo($uploadedPath, PATHINFO_FILENAME) . '.pdf';
+        $pdfPath = mrs_temp_dir() . pathinfo($uploaded, PATHINFO_FILENAME) . '.pdf';
         file_put_contents($pdfPath, $dompdf->output());
 
-        $token = \MRS_CS\create_download_token($pdfPath, 3600);
+        $token = mrs_create_download_token($pdfPath, 3600);
         $url = add_query_arg('mrs_cs_download', $token, home_url('/'));
         wp_send_json_success(['url' => $url]);
-    } catch (\Exception $e) {
+    } catch (Exception $e) {
         wp_send_json_error('Konvertierungsfehler: ' . $e->getMessage(), 500);
     }
 }

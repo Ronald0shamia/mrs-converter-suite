@@ -2,8 +2,8 @@
 <div class="mrs-tool-wrapper">
     <h2>PDF Splitter</h2>
 
-    <form class="mrs-form" data-action="mrs_pdf_splitter" enctype="multipart/form-data">
-        <div class="mrs-dropzone"><p>Ziehe deine PDF hierher</p></div>
+    <form class="mrs-form" data-action="mrs_pdf_splitter_action" enctype="multipart/form-data">
+        <div class="mrs-dropzone"><p>Ziehe eine PDF hierher</p></div>
         <input type="file" name="file" accept="application/pdf" />
         <label>Seiten (z.B. 1-3,5). Leer = alle Seiten einzeln:</label>
         <input type="text" name="pages" placeholder="1-3,5" />

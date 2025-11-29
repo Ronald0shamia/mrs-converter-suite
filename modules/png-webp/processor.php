@@ -4,7 +4,7 @@ if (!defined('ABSPATH')) exit;
 function mrs_png_webp_process() {
     if (empty($_FILES['files'])) wp_send_json_error('Keine Dateien gesendet', 400);
 
-    $tmp_dir = \MRS_CS\temp_dir();
+    $tmp_dir = mrs_temp_dir();
     $outFiles = [];
     $quality = isset($_POST['quality']) ? intval($_POST['quality']) : 80;
 
@@ -16,7 +16,7 @@ function mrs_png_webp_process() {
             'error' => $_FILES['files']['error'][$i],
             'size' => $_FILES['files']['size'][$i],
         ];
-        $res = \MRS_CS\handle_upload_field('tmp_single', ['png','jpg','jpeg'], 10 * 1024 * 1024);
+        $res = mrs_handle_single_upload('tmp_single', ['png','jpg','jpeg'], 10 * 1024 * 1024);
         unset($_FILES['tmp_single']);
         if (is_wp_error($res)) continue;
         $src = $res;
@@ -25,14 +25,14 @@ function mrs_png_webp_process() {
 
         if (class_exists('Imagick')) {
             try {
-                $im = new \Imagick($src);
+                $im = new Imagick($src);
                 $im->setImageFormat('webp');
                 $im->setImageCompressionQuality($quality);
                 if (method_exists($im,'stripImage')) $im->stripImage();
                 $im->writeImage($dest);
                 $im->clear(); $im->destroy();
                 $converted = file_exists($dest);
-            } catch (\Exception $e) {
+            } catch (Exception $e) {
                 $converted = false;
             }
         }
@@ -63,18 +63,18 @@ function mrs_png_webp_process() {
     if (empty($outFiles)) wp_send_json_error('Keine Dateien konvertiert (fehlende Extensions?)', 500);
 
     if (count($outFiles) === 1) {
-        $token = \MRS_CS\create_download_token($outFiles[0], 3600);
+        $token = mrs_create_download_token($outFiles[0], 3600);
         $url = add_query_arg('mrs_cs_download', $token, home_url('/'));
         wp_send_json_success(['url' => $url]);
     } else {
-        $zip = new \ZipArchive();
-        $zipPath = \MRS_CS\temp_dir() . 'webp_' . time() . '.zip';
-        if ($zip->open($zipPath, \ZipArchive::CREATE) !== TRUE) {
+        $zip = new ZipArchive();
+        $zipPath = mrs_temp_dir() . 'webp_' . time() . '.zip';
+        if ($zip->open($zipPath, ZipArchive::CREATE) !== TRUE) {
             wp_send_json_error('ZIP Fehler', 500);
         }
         foreach ($outFiles as $f) $zip->addFile($f, basename($f));
         $zip->close();
-        $token = \MRS_CS\create_download_token($zipPath, 3600);
+        $token = mrs_create_download_token($zipPath, 3600);
         $url = add_query_arg('mrs_cs_download', $token, home_url('/'));
         wp_send_json_success(['url' => $url]);
     }

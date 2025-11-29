@@ -1,11 +1,12 @@
+// assets/js/frontend.js
 jQuery(function($){
-    // localize expects MRS_CSAjax { ajax_url, nonce }
-    var ajaxUrl = (typeof MRS_CSAjax !== 'undefined') ? MRS_CSAjax.ajax_url : '/wp-admin/admin-ajax.php';
+    var ajaxUrl = (typeof mrs_converter_ajax !== 'undefined' && mrs_converter_ajax.ajax_url) ? mrs_converter_ajax.ajax_url : (typeof MRS_CSAjax !== 'undefined' ? MRS_CSAjax.ajax_url : '/wp-admin/admin-ajax.php');
     var ajaxNonce = (typeof MRS_CSAjax !== 'undefined') ? MRS_CSAjax.nonce : '';
 
     function initDropzone($root) {
         var $dz = $root.find('.mrs-dropzone');
         var $file = $root.find('input[type=file]');
+        if (!$dz.length || !$file.length) return;
         $dz.on('click', function(){ $file.trigger('click'); });
         $dz.on('dragover', function(e){ e.preventDefault(); $(this).addClass('dragover'); });
         $dz.on('dragleave', function(){ $(this).removeClass('dragover'); });
@@ -29,7 +30,7 @@ jQuery(function($){
             var action = $form.data('action') || $form.attr('id') || '';
             var fd = new FormData(this);
             fd.append('action', action);
-            // add nonce (form has own hidden nonce too)
+            // append nonce if not present
             if (!fd.get('nonce') && ajaxNonce) fd.append('nonce', ajaxNonce);
 
             $result.html('<em>Bitte warten…</em>');
@@ -53,7 +54,7 @@ jQuery(function($){
                 },
                 success: function(res) {
                     if (res && res.success) {
-                        var url = res.data.url || (res.data && res.data.url);
+                        var url = res.data.url || res.data;
                         $result.html('<a href="'+url+'" target="_blank" rel="noopener">Datei herunterladen</a>');
                     } else {
                         var msg = (res && res.data) ? res.data : (res && res.message) ? res.message : 'Unbekannter Fehler';

@@ -2,17 +2,16 @@
 if (!defined('ABSPATH')) exit;
 
 add_shortcode('mrs_pdf_splitter', function(){
-    return \MRS_CS\Template::render(MRS_CS_PATH . 'modules/pdf-splitter/view.php');
+    return MRS_Template::load('modules/pdf-splitter/view');
 });
 
-add_action('wp_ajax_mrs_pdf_splitter', 'mrs_pdf_splitter_ajax');
-add_action('wp_ajax_nopriv_mrs_pdf_splitter', 'mrs_pdf_splitter_ajax');
+add_action('wp_ajax_mrs_pdf_splitter_action', 'mrs_pdf_splitter_action');
+add_action('wp_ajax_nopriv_mrs_pdf_splitter_action', 'mrs_pdf_splitter_action');
 
-function mrs_pdf_splitter_ajax() {
-    $nonce = $_POST['nonce'] ?? '';
-    if (!wp_verify_nonce($nonce, 'mrs_cs_nonce')) {
+function mrs_pdf_splitter_action() {
+    if (empty($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'mrs_cs_nonce')) {
         wp_send_json_error('Nonce ungültig', 403);
     }
-    require_once MRS_CS_PATH . 'modules/pdf-splitter/processor.php';
+    require_once __DIR__ . '/processor.php';
     mrs_pdf_splitter_process();
 }

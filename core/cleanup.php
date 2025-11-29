@@ -1,22 +1,26 @@
 <?php
-namespace MRS_CS;
 if (!defined('ABSPATH')) exit;
 
-class Cleanup {
-    public static function run() {
-        $hours = intval(get_option('mrs_cs_cleanup_hours', 24 * 7));
-        if ($hours <= 0) return;
-        $tmp_dir = temp_dir();
-        if (!is_dir($tmp_dir)) return;
-        $now = time();
-        $files = glob($tmp_dir . '*');
-        if (!$files) return;
-        foreach ($files as $f) {
-            if (!is_file($f)) continue;
-            $ageHours = ($now - filemtime($f)) / 3600;
-            if ($ageHours > $hours) {
-                @unlink($f);
+class MRS_Cleanup {
+
+    public function __construct() {
+        add_action('mrs_cleanup_daily', [$this,'cleanup_temp']);
+        if (!wp_next_scheduled('mrs_cleanup_daily')) {
+            wp_schedule_event(time(), 'daily', 'mrs_cleanup_daily');
+        }
+    }
+
+    public function cleanup_temp() {
+        $dir = MRS_CONVERTER_PATH . 'temp/';
+
+        if (!is_dir($dir)) return;
+
+        foreach (glob($dir . '*') as $file) {
+            if (is_file($file) && filemtime($file) < (time() - 24*3600)) {
+                unlink($file);
             }
         }
     }
 }
+
+new MRS_Cleanup();
