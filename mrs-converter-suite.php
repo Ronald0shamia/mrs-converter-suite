@@ -2,7 +2,7 @@
 /*
 Plugin Name: MRS Converter Suite
 Description: Sammlung von Converter-Tools (Word→PDF, PDF Merger, PDF Splitter, PNG→WEBP ...). Jedes Tool hat einen Shortcode für eigene Frontend-Seiten.
-Version: 0.1.0
+Version: 1.0.1
 Author: Raeed Shamia
 Author URI: https://mrs-dev.com
 Text Domain: mrs-converter-suite
@@ -19,12 +19,25 @@ class MRS_Converter_Suite {
     }
 
     private function define_constants() {
-        define('MRS_CONVERTER_PATH', plugin_dir_path(__FILE__));
-        define('MRS_CONVERTER_URL', plugin_dir_url(__FILE__));
-        define('MRS_CONVERTER_VERSION', '1.0.0');
+        if (!defined('MRS_CONVERTER_PATH')) {
+            define('MRS_CONVERTER_PATH', plugin_dir_path(__FILE__));
+        }
+
+        if (!defined('MRS_CONVERTER_URL')) {
+            define('MRS_CONVERTER_URL', plugin_dir_url(__FILE__));
+        }
+
+        if (!defined('MRS_CONVERTER_VERSION')) {
+            define('MRS_CONVERTER_VERSION', '1.0.1');
+        }
     }
 
     private function includes() {
+        $autoload = MRS_CONVERTER_PATH . 'vendor/autoload.php';
+        if (file_exists($autoload)) {
+            require_once $autoload;
+        }
+
         // Core
         require_once MRS_CONVERTER_PATH . 'core/template.php';
         require_once MRS_CONVERTER_PATH . 'core/ajax.php';
@@ -61,11 +74,12 @@ class MRS_Converter_Suite {
     }
 
     public function load_assets() {
-        wp_enqueue_style('mrs-converter-style', MRS_CONVERTER_URL . 'assets/css/style.css', [], MRS_CONVERTER_VERSION);
+        wp_enqueue_style('mrs-converter-style', MRS_CONVERTER_URL . 'assets/css/frontend.css', [], MRS_CONVERTER_VERSION);
         wp_enqueue_script('mrs-converter-script', MRS_CONVERTER_URL . 'assets/js/frontend.js', ['jquery'], MRS_CONVERTER_VERSION, true);
         
         wp_localize_script('mrs-converter-script', 'mrs_converter_ajax', [
-            'ajax_url' => admin_url('admin-ajax.php')
+            'ajax_url' => admin_url('admin-ajax.php'),
+            'nonce' => wp_create_nonce('mrs_cs_nonce'),
         ]);
     }
 }

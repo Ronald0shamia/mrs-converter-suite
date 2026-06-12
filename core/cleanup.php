@@ -11,13 +11,13 @@ class MRS_Cleanup {
     }
 
     public function cleanup_temp() {
-        $dir = MRS_CONVERTER_PATH . 'temp/';
+        $dir = function_exists('mrs_temp_dir') ? mrs_temp_dir() : '';
 
         if (!is_dir($dir)) return;
 
-        foreach (glob($dir . '*') as $file) {
-            if (is_file($file) && filemtime($file) < (time() - 24*3600)) {
-                unlink($file);
+        foreach (glob(trailingslashit($dir) . '*') as $file) {
+            if (is_file($file) && filemtime($file) < (time() - DAY_IN_SECONDS)) {
+                @unlink($file);
             }
         }
     }
